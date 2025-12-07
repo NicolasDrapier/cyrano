@@ -1,3 +1,6 @@
+![License: MIT License](https://img.shields.io/badge/License-mit-blue.svg)
+
+
 # Cyrano
 
 Rust library for the CYRANO fencing protocol (EFP1.1).
