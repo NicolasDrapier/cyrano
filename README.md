@@ -2,6 +2,10 @@
 
 Rust library for the CYRANO fencing protocol (EFP1.1).
 
+## ⚠️ Work in Progress
+
+This library is currently under active development and is not yet ready for production use. API may change without notice.
+
 ## About
 
 Cyrano is a parser and serializer for the CYRANO protocol, enabling Ethernet communication between scoring software and piste devices in fencing competitions.
