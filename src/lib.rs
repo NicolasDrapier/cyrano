@@ -1,6 +1,6 @@
 //! # Cyrano
 //!
-//! A Rust library for parsing and serializing Electronic Fencing Protocol (EFP) messages.
+//! A Rust library for parsing and serializing Ethernet Fencing Protocol (EFP) messages.
 //!
 //! This crate provides types and parsers for working with the EFP protocol versions 1.0 and 1.1,
 //! which is used by electronic scoring equipment in fencing competitions.

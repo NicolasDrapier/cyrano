@@ -9,7 +9,7 @@ use crate::utils::{get_field, get_required_field, parse_optional_u8};
 
 /// A complete EFP protocol message.
 ///
-/// Represents a parsed message from the Electronic Fencing Protocol (EFP),
+/// Represents a parsed message from the Ethernet Fencing Protocol (EFP),
 /// containing information about a fencing match including referee, fencers,
 /// scores, and match state.
 ///
