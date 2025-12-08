@@ -1,26 +1,54 @@
 use std::convert::TryFrom;
-
+use crate::utils::{get_field, parse_optional_bool, parse_optional_u8};
 use super::enums::{FencerStatus, PCard, Reserve};
 use super::error::ParseError;
-use super::parser::{get_field, parse_optional_bool, parse_optional_u8};
 
+/// Information about a fencer participating in a match.
+///
+/// Contains all relevant data about a fencer including their identity, score,
+/// penalties, and status indicators.
 #[derive(Debug, Clone, Default)]
 pub struct Fencer {
+    /// Unique identifier for the fencer.
     pub id: Option<String>,
+    /// Full name of the fencer.
     pub name: Option<String>,
+    /// Three-letter country code of the fencer's nation (e.g., "FRA", "USA").
     pub nation: Option<String>,
+    /// Current score in the match.
     pub score: Option<u8>,
+    /// Match status (victory, defeat, etc.).
     pub status: Option<FencerStatus>,
+    /// Number of yellow cards received (warnings).
     pub yellow_card: Option<u8>,
+    /// Number of red cards received (penalty touches).
     pub red_card: Option<u8>,
+    /// Whether the fencer's scoring light is on.
     pub light: Option<bool>,
+    /// Whether the white light is on (off-target touch).
     pub white_light: Option<bool>,
+    /// Fencer medical interventions.
     pub medical: Option<u8>,
+    /// Reserve fencer status.
     pub reserve: Option<Reserve>,
+    /// Fencer P-Card.
     pub p_card: Option<PCard>,
 }
 
 impl Fencer {
+    /// Parses fencer data from an array of string fields.
+    ///
+    /// # Arguments
+    ///
+    /// * `fields` - Array of string slices containing fencer data in protocol format
+    ///
+    /// # Returns
+    ///
+    /// Returns a `Result` containing the parsed `Fencer` or a `ParseError` if parsing fails.
+    ///
+    /// # Errors
+    ///
+    /// Returns `ParseError` if any required field is missing or contains invalid data.
     pub fn parse(fields: &[&str]) -> Result<Self, ParseError> {
         Ok(Fencer {
             id: get_field(fields, 0).map(String::from),
@@ -38,6 +66,14 @@ impl Fencer {
         })
     }
 
+    /// Serializes the fencer data into protocol format.
+    ///
+    /// Converts the fencer's data into a pipe-delimited string format according
+    /// to the EFP protocol specification. Empty trailing fields are trimmed.
+    ///
+    /// # Returns
+    ///
+    /// A `String` containing the serialized fencer data.
     pub fn serialize(&self) -> String {
         let fields: Vec<String> = vec![
             self.id.clone().unwrap_or_default(),
@@ -54,7 +90,7 @@ impl Fencer {
             self.p_card.as_ref().map(|v| v.to_string()).unwrap_or_default(),
         ];
 
-        // Supprime les champs vides à la fin
+        // Remove empty fields at the end
         let trimmed = fields
             .into_iter()
             .rev()

@@ -5,68 +5,115 @@ use super::error::ParseError;
 
 // ===== ENUMS =====
 
+/// Protocol command types supported by the EFP protocol.
+///
+/// These commands define the type of message being sent or received.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Command {
+    /// Initial handshake command.
     Hello,
+    /// Display command.
     Disp,
+    /// Acknowledgment command.
     Ack,
+    /// Negative acknowledgment command.
     Nak,
+    /// Information message containing match data.
     Info,
+    /// Move to next match.
     Next,
+    /// Move to previous match.
     Prev,
 }
 
+/// Type of fencing competition.
 #[derive(Debug, Clone, PartialEq)]
 pub enum CompetitionType {
+    /// Individual competition (one fencer per side).
     Individual,
+    /// Team competition.
     Team,
 }
 
+/// Type of fencing weapon.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Weapon {
+    /// Foil weapon.
     Foil,
+    /// Épée weapon.
     Epee,
+    /// Sabre weapon.
     Sabre,
 }
 
+/// Priority indicator in fencing, typically used in sabre.
+///
+/// Indicates which fencer has priority (right of way) in the current action.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Priority {
+    /// No priority assigned.
     None,
+    /// Right fencer has priority.
     Right,
+    /// Left fencer has priority.
     Left,
 }
 
+/// Current state of the fencing apparatus/scoring machine.
 #[derive(Debug, Clone, PartialEq)]
 pub enum ApparatusState {
+    /// Fencing is in progress.
     Fencing,
+    /// Match is halted.
     Halt,
+    /// Match is paused.
     Pause,
+    /// Apparatus is waiting for match to begin.
     Waiting,
+    /// Match is ending.
     Ending,
 }
 
+/// Status of a fencer in the match.
 #[derive(Debug, Clone, PartialEq)]
 pub enum FencerStatus {
+    /// Status is undefined (match in progress).
     Undefined,
+    /// Fencer has won the match.
     Victory,
+    /// Fencer has lost the match.
     Defeat,
+    /// Fencer has abandoned the match.
     Abandonment,
+    /// Fencer has been excluded from the match.
     Exclusion,
 }
 
+/// Reserve fencer status indicator.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Reserve {
+    /// No reserve status.
     None,
+    /// Reserve fencer to be introduced.
     Introduce,
 }
 
+/// Penalty card status for a fencer.
+///
+/// Represents the cumulative penalty cards a fencer has received.
 #[derive(Debug, Clone, PartialEq)]
 pub enum PCard {
+    /// No penalty cards.
     None,
+    /// Yellow card (warning).
     Yellow,
+    /// First red card (penalty touch).
     OneRed,
+    /// Second red card (two penalty touches).
     TwoRed,
+    /// First black card (exclusion).
     OneBlack,
+    /// Second black card (expulsion).
     TwoBlack,
 }
 

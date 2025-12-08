@@ -1,36 +1,102 @@
 use std::convert::TryFrom;
 use std::fmt::Display;
 
-use super::enums::{ApparatusState, Command, CompetitionType, Priority, Weapon};
-use super::error::ParseError;
-use super::fencer::Fencer;
-use super::parser::{get_field, get_required_field, parse_optional_u8};
-use super::referee::Referee;
+use crate::enums::*;
+use crate::error::ParseError;
+use crate::fencer::Fencer;
+use crate::referee::Referee;
+use crate::utils::{get_field, get_required_field, parse_optional_u8};
 
+/// A complete EFP protocol message.
+///
+/// Represents a parsed message from the Electronic Fencing Protocol (EFP),
+/// containing information about a fencing match including referee, fencers,
+/// scores, and match state.
+///
+/// # Message Format
+///
+/// Messages follow the format: `|general_fields|%|right_fencer|%|left_fencer|%|`
+/// where fields are pipe-delimited and sections are separated by percent signs.
+///
+/// # Examples
+///
+/// ```
+/// use std::convert::TryFrom;
+/// use cyrano::message::Message;
+///
+/// let raw = "|EFP1.1|HELLO|17|fm-eq|%|";
+/// let msg = Message::try_from(raw).unwrap();
+/// assert_eq!(msg.piste, "17");
+/// ```
 #[derive(Debug, Clone)]
 pub struct Message {
+    /// Protocol version (e.g., "EFP1.1" or "EFP1").
     pub protocol: String,
+    /// The command type of this message.
     pub command: Command,
+    /// Piste (strip) identifier.
     pub piste: String,
+    /// Competition identifier.
     pub competition_id: String,
+    /// Competition phase number.
     pub phase: Option<u8>,
+    /// Pool or tableau identifier.
     pub pool_tableau: Option<String>,
+    /// Match number within the competition.
     pub match_number: Option<u8>,
+    /// Round number.
     pub round: Option<u8>,
+    /// Current match time.
     pub time: Option<String>,
+    /// Stopwatch time.
     pub stopwatch: Option<String>,
+    /// Type of competition (Individual or Team).
     pub competition_type: Option<CompetitionType>,
+    /// Weapon type being used.
     pub weapon: Option<Weapon>,
+    /// Priority indicator (for weapons with right-of-way).
     pub priority: Option<Priority>,
+    /// Current state of the apparatus.
     pub state: Option<ApparatusState>,
+    /// Information about the referee.
     pub referee: Referee,
+    /// Information about the fencer on the right.
     pub right_fencer: Fencer,
+    /// Information about the fencer on the left.
     pub left_fencer: Fencer,
 }
 
 impl TryFrom<&str> for Message {
     type Error = ParseError;
 
+    /// Parses an EFP protocol message from a string slice.
+    ///
+    /// # Arguments
+    ///
+    /// * `raw` - The raw protocol message string
+    ///
+    /// # Returns
+    ///
+    /// Returns `Ok(Message)` if parsing succeeds.
+    ///
+    /// # Errors
+    ///
+    /// Returns `ParseError` if:
+    /// - The message is empty
+    /// - The format is invalid
+    /// - Required fields are missing
+    /// - The protocol version is not supported (only EFP1 and EFP1.1 are supported)
+    /// - Field values are invalid
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::convert::TryFrom;
+    /// use cyrano::message::Message;
+    ///
+    /// let raw = "|EFP1.1|INFO|17|fm-eq|%|";
+    /// let msg = Message::try_from(raw).unwrap();
+    /// ```
     fn try_from(raw: &str) -> Result<Self, Self::Error> {
         let raw = raw.trim();
 
@@ -38,30 +104,24 @@ impl TryFrom<&str> for Message {
             return Err(ParseError::EmptyMessage);
         }
 
-        // Enlève les | au début et à la fin
         let raw = raw.trim_matches('|');
-
-        // Sépare les 3 zones par %
         let zones: Vec<&str> = raw.split('%').collect();
 
         if zones.is_empty() {
             return Err(ParseError::InvalidFormat);
         }
 
-        // Zone générale
         let general_fields: Vec<&str> = zones[0].trim_matches('|').split('|').collect();
 
-        // Champs obligatoires (**)
         let protocol = get_required_field(&general_fields, 0, "protocol")?;
         if protocol != "EFP1.1" && protocol != "EFP1" {
             return Err(ParseError::InvalidProtocol(protocol.to_string()));
         }
 
         let command = Command::try_from(get_required_field(&general_fields, 1, "command")?)?;
-        let piste = get_required_field(&general_fields, 2, "piste")?.to_string();
-        let competition_id = get_required_field(&general_fields, 3, "competition_id")?.to_string();
+        let piste = get_field(&general_fields, 2).map(String::from).unwrap_or_else(String::new);
+        let competition_id = get_field(&general_fields, 3).map(String::from).unwrap_or_else(String::new);
 
-        // Champs optionnels de la zone générale
         let phase = parse_optional_u8(&general_fields, 4);
         let pool_tableau = get_field(&general_fields, 5).map(String::from);
         let match_number = parse_optional_u8(&general_fields, 6);
@@ -81,7 +141,6 @@ impl TryFrom<&str> for Message {
             nation: get_field(&general_fields, 16).map(String::from),
         };
 
-        // Zone tireur droit
         let right_fencer = if zones.len() > 1 {
             let right_fields: Vec<&str> = zones[1].trim_matches('|').split('|').collect();
             Fencer::parse(&right_fields)?
@@ -89,7 +148,6 @@ impl TryFrom<&str> for Message {
             Fencer::default()
         };
 
-        // Zone tireur gauche
         let left_fencer = if zones.len() > 2 {
             let left_fields: Vec<&str> = zones[2].trim_matches('|').split('|').collect();
             Fencer::parse(&left_fields)?
@@ -122,14 +180,21 @@ impl TryFrom<&str> for Message {
 impl TryFrom<String> for Message {
     type Error = ParseError;
 
+    /// Parses an EFP protocol message from an owned `String`.
+    ///
+    /// This is a convenience implementation that delegates to `TryFrom<&str>`.
     fn try_from(raw: String) -> Result<Self, Self::Error> {
         Message::try_from(raw.as_str())
     }
 }
 
 impl Display for Message {
+    /// Formats the message as an EFP protocol string.
+    ///
+    /// Serializes the message back into the pipe-delimited format with
+    /// percent-separated zones according to the EFP protocol specification.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        // Zone générale
+        // General zone
         let general_fields: Vec<String> = vec![
             self.protocol.clone(),
             self.command.to_string(),
@@ -165,7 +230,7 @@ impl Display for Message {
         let right_serialized = self.right_fencer.serialize();
         let left_serialized = self.left_fencer.serialize();
 
-        // Construit le message complet
+        // Build the complete message
         write!(
             f,
             "|{}|%|{}|%|{}|%|",
@@ -177,6 +242,9 @@ impl Display for Message {
 }
 
 impl From<Message> for String {
+    /// Converts a `Message` into its protocol string representation.
+    ///
+    /// This is a convenience implementation that uses the `Display` trait.
     fn from(msg: Message) -> Self {
         msg.to_string()
     }
@@ -187,7 +255,6 @@ impl From<Message> for String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::messages::enums::{ApparatusState, Command, FencerStatus, Weapon};
 
     #[test]
     fn test_parse_hello() {
@@ -223,12 +290,12 @@ mod tests {
 
     #[test]
     fn test_parse_info_incomplete() {
-        let raw = "|EFP1.1|INFO|17|fm-eq|||||||||W|||%|";
+        let raw = "|EFP1.1|INFO||||||||||||W||%|";
         let msg = Message::try_from(raw).unwrap();
 
         assert_eq!(msg.command, Command::Info);
-        assert_eq!(msg.piste, "17");
-        assert_eq!(msg.competition_id, "fm-eq");
+        assert_eq!(msg.piste, "");
+        assert_eq!(msg.competition_id, "");
         assert_eq!(msg.state, Some(ApparatusState::Waiting));
     }
 

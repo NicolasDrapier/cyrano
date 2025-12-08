@@ -2,5 +2,28 @@
 name = "cyrano"
 version = "0.1.0"
 edition = "2021"
+authors = ["Nicolas Drapier"]
+description = "A Rust library for parsing and serializing Ethernet Fencing Protocol (EFP) messages"
+license = "MIT"
+repository = "https://github.com/NicolasDrapier/cyrano"
+homepage = "https://github.com/NicolasDrapier/cyrano"
+documentation = "https://docs.rs/cyrano"
+readme = "README.md"
+keywords = ["fencing", "cyrano", "protocol", "parser", "sports"]
+categories = ["parsing", "no-std"]
 
 [dependencies]
+
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
+
+[profile.dev]
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 3
