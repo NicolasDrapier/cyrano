@@ -6,6 +6,12 @@ use super::error::ParseError;
 // ===== ENUMS =====
 
 #[derive(Debug, Clone, PartialEq)]
+pub enum Protocol {
+    Efp1,
+    Efp1_1,
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub enum Command {
     Hello,
     Disp,
@@ -71,6 +77,27 @@ pub enum PCard {
 }
 
 // ===== IMPL PARSING ENUMS =====
+
+impl TryFrom<&str> for Protocol {
+    type Error = ParseError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        match value {
+            "EFP1" => Ok(Protocol::Efp1),
+            "EFP1.1" => Ok(Protocol::Efp1_1),
+            _ => Err(ParseError::InvalidProtocol(value.to_string())),
+        }
+    }
+}
+
+impl Display for Protocol {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Protocol::Efp1 => write!(f, "EFP1"),
+            Protocol::Efp1_1 => write!(f, "EFP1.1"),
+        }
+    }
+}
 
 impl TryFrom<&str> for Command {
     type Error = ParseError;

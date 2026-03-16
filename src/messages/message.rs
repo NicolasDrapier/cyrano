@@ -1,15 +1,15 @@
 use std::convert::TryFrom;
 use std::fmt::Display;
 
-use super::enums::{ApparatusState, Command, CompetitionType, Priority, Weapon};
+use super::enums::{ApparatusState, Command, CompetitionType, Priority, Protocol, Weapon};
 use super::error::ParseError;
 use super::fencer::Fencer;
-use super::parser::{get_field, get_required_field, parse_optional_u8};
+use super::parser::{get_field, get_required_field, parse_optional_u8, strip_outer_pipes};
 use super::referee::Referee;
 
 #[derive(Debug, Clone)]
 pub struct Message {
-    pub protocol: String,
+    pub protocol: Protocol,
     pub command: Command,
     pub piste: String,
     pub competition_id: String,
@@ -44,18 +44,12 @@ impl TryFrom<&str> for Message {
         // Sépare les 3 zones par %
         let zones: Vec<&str> = raw.split('%').collect();
 
-        if zones.is_empty() {
-            return Err(ParseError::InvalidFormat);
-        }
-
         // Zone générale
-        let general_fields: Vec<&str> = zones[0].trim_matches('|').split('|').collect();
+        let general_fields: Vec<&str> = strip_outer_pipes(zones[0]).split('|').collect();
 
         // Champs obligatoires (**)
-        let protocol = get_required_field(&general_fields, 0, "protocol")?;
-        if protocol != "EFP1.1" && protocol != "EFP1" {
-            return Err(ParseError::InvalidProtocol(protocol.to_string()));
-        }
+        let protocol =
+            Protocol::try_from(get_required_field(&general_fields, 0, "protocol")?)?;
 
         let command = Command::try_from(get_required_field(&general_fields, 1, "command")?)?;
         let piste = get_required_field(&general_fields, 2, "piste")?.to_string();
@@ -83,7 +77,7 @@ impl TryFrom<&str> for Message {
 
         // Zone tireur droit
         let right_fencer = if zones.len() > 1 {
-            let right_fields: Vec<&str> = zones[1].trim_matches('|').split('|').collect();
+            let right_fields: Vec<&str> = strip_outer_pipes(zones[1]).split('|').collect();
             Fencer::parse(&right_fields)?
         } else {
             Fencer::default()
@@ -91,14 +85,14 @@ impl TryFrom<&str> for Message {
 
         // Zone tireur gauche
         let left_fencer = if zones.len() > 2 {
-            let left_fields: Vec<&str> = zones[2].trim_matches('|').split('|').collect();
+            let left_fields: Vec<&str> = strip_outer_pipes(zones[2]).split('|').collect();
             Fencer::parse(&left_fields)?
         } else {
             Fencer::default()
         };
 
         Ok(Message {
-            protocol: protocol.to_string(),
+            protocol,
             command,
             piste,
             competition_id,
@@ -127,51 +121,39 @@ impl TryFrom<String> for Message {
     }
 }
 
+fn write_opt<T: Display>(f: &mut std::fmt::Formatter<'_>, val: &Option<T>) -> std::fmt::Result {
+    if let Some(v) = val {
+        write!(f, "{v}")
+    } else {
+        Ok(())
+    }
+}
+
 impl Display for Message {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         // Zone générale
-        let general_fields: Vec<String> = vec![
-            self.protocol.clone(),
-            self.command.to_string(),
-            self.piste.clone(),
-            self.competition_id.clone(),
-            self.phase.map(|v| v.to_string()).unwrap_or_default(),
-            self.pool_tableau.clone().unwrap_or_default(),
-            self.match_number.map(|v| v.to_string()).unwrap_or_default(),
-            self.round.map(|v| v.to_string()).unwrap_or_default(),
-            self.time.clone().unwrap_or_default(),
-            self.stopwatch.clone().unwrap_or_default(),
-            self.competition_type
-                .as_ref()
-                .map(|v| v.to_string())
-                .unwrap_or_default(),
-            self.weapon
-                .as_ref()
-                .map(|v| v.to_string())
-                .unwrap_or_default(),
-            self.priority
-                .as_ref()
-                .map(|v| v.to_string())
-                .unwrap_or_default(),
-            self.state
-                .as_ref()
-                .map(|v| v.to_string())
-                .unwrap_or_default(),
-            self.referee.id.clone().unwrap_or_default(),
-            self.referee.name.clone().unwrap_or_default(),
-            self.referee.nation.clone().unwrap_or_default(),
-        ];
+        write!(f, "|{}|{}|{}|{}", self.protocol, self.command, self.piste, self.competition_id)?;
 
-        let right_serialized = self.right_fencer.serialize();
-        let left_serialized = self.left_fencer.serialize();
+        write!(f, "|")?; write_opt(f, &self.phase)?;
+        write!(f, "|")?; write_opt(f, &self.pool_tableau)?;
+        write!(f, "|")?; write_opt(f, &self.match_number)?;
+        write!(f, "|")?; write_opt(f, &self.round)?;
+        write!(f, "|")?; write_opt(f, &self.time)?;
+        write!(f, "|")?; write_opt(f, &self.stopwatch)?;
+        write!(f, "|")?; write_opt(f, &self.competition_type)?;
+        write!(f, "|")?; write_opt(f, &self.weapon)?;
+        write!(f, "|")?; write_opt(f, &self.priority)?;
+        write!(f, "|")?; write_opt(f, &self.state)?;
+        write!(f, "|")?; write_opt(f, &self.referee.id)?;
+        write!(f, "|")?; write_opt(f, &self.referee.name)?;
+        write!(f, "|")?; write_opt(f, &self.referee.nation)?;
 
-        // Construit le message complet
+        // Fencer zones
         write!(
             f,
-            "|{}|%|{}|%|{}|%|",
-            general_fields.join("|"),
-            right_serialized,
-            left_serialized
+            "|%|{}|%|{}|%|",
+            self.right_fencer.serialize(),
+            self.left_fencer.serialize()
         )
     }
 }
@@ -223,7 +205,7 @@ mod tests {
 
     #[test]
     fn test_parse_info_incomplete() {
-        let raw = "|EFP1.1|INFO|17|fm-eq|||||||||W|||%|";
+        let raw = "|EFP1.1|INFO|17|fm-eq||||||||||W|||%|";
         let msg = Message::try_from(raw).unwrap();
 
         assert_eq!(msg.command, Command::Info);
@@ -242,6 +224,39 @@ mod tests {
         assert_eq!(msg.command, reparsed.command);
         assert_eq!(msg.piste, reparsed.piste);
         assert_eq!(msg.competition_id, reparsed.competition_id);
+    }
+
+    #[test]
+    fn test_roundtrip_complete() {
+        let raw = "|EFP1.1|INFO|17|efj-eq|1|A32|12|2|10:30|3:00|I|S||W|132|J.Smith|GBR|%|28|P.Martin|FRA|8|V|0|1|1|0|0|N|%|32|B. Panini|ITA|6|D|0|1|0|0|0|N|%|";
+        let msg = Message::try_from(raw).unwrap();
+        let serialized = msg.to_string();
+        let reparsed = Message::try_from(serialized.as_str()).unwrap();
+
+        assert_eq!(msg.command, reparsed.command);
+        assert_eq!(msg.piste, reparsed.piste);
+        assert_eq!(msg.right_fencer.id, reparsed.right_fencer.id);
+        assert_eq!(msg.right_fencer.name, reparsed.right_fencer.name);
+        assert_eq!(msg.right_fencer.score, reparsed.right_fencer.score);
+        assert_eq!(msg.right_fencer.status, reparsed.right_fencer.status);
+        assert_eq!(msg.right_fencer.light, reparsed.right_fencer.light);
+        assert_eq!(msg.left_fencer.id, reparsed.left_fencer.id);
+        assert_eq!(msg.left_fencer.score, reparsed.left_fencer.score);
+    }
+
+    #[test]
+    fn test_roundtrip_sparse_fencer() {
+        // Fencer with only a late field set (light at index 7) — tests the
+        // trim_matches fix: leading empty fields must survive serialization roundtrip
+        let raw = "|EFP1.1|INFO|17|fm-eq|%||||||||1|||%|%|";
+        let msg = Message::try_from(raw).unwrap();
+        assert_eq!(msg.right_fencer.light, Some(true));
+        assert_eq!(msg.right_fencer.id, None);
+
+        let serialized = msg.to_string();
+        let reparsed = Message::try_from(serialized.as_str()).unwrap();
+        assert_eq!(reparsed.right_fencer.light, Some(true));
+        assert_eq!(reparsed.right_fencer.id, None);
     }
 
     #[test]

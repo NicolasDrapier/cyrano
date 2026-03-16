@@ -55,15 +55,10 @@ impl Fencer {
         ];
 
         // Supprime les champs vides à la fin
-        let trimmed = fields
-            .into_iter()
-            .rev()
-            .skip_while(|s| s.is_empty())
-            .collect::<Vec<_>>()
-            .into_iter()
-            .rev()
-            .collect::<Vec<_>>();
-
-        trimmed.join("|")
+        let last = fields.iter().rposition(|s| !s.is_empty());
+        match last {
+            Some(idx) => fields[..=idx].join("|"),
+            None => String::new(),
+        }
     }
 }

@@ -1,5 +1,3 @@
-use std::convert::TryFrom;
-
 use super::error::ParseError;
 
 /// Récupère une valeur à un index, retourne None si vide ou absent
@@ -32,14 +30,8 @@ pub fn parse_optional_bool(fields: &[&str], index: usize) -> Option<bool> {
     get_field(fields, index).map(|s| s == "1")
 }
 
-/// Parse une enum optionnelle
-pub fn parse_optional_enum<T: TryFrom<&'static str, Error = ParseError>>(
-    fields: &[&str],
-    index: usize,
-) -> Option<T> {
-    get_field(fields, index).and_then(|s| {
-        // Astuce pour contourner les lifetimes
-        let static_str: &'static str = Box::leak(s.to_string().into_boxed_str());
-        T::try_from(static_str).ok()
-    })
+/// Strips exactly one leading and one trailing '|' from a zone string
+pub fn strip_outer_pipes(s: &str) -> &str {
+    let s = s.strip_prefix('|').unwrap_or(s);
+    s.strip_suffix('|').unwrap_or(s)
 }
