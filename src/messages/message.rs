@@ -52,8 +52,8 @@ impl TryFrom<&str> for Message {
             Protocol::try_from(get_required_field(&general_fields, 0, "protocol")?)?;
 
         let command = Command::try_from(get_required_field(&general_fields, 1, "command")?)?;
-        let piste = get_required_field(&general_fields, 2, "piste")?.to_string();
-        let competition_id = get_required_field(&general_fields, 3, "competition_id")?.to_string();
+        let piste = get_field(&general_fields, 2).map(String::from).unwrap_or_default();
+        let competition_id = get_field(&general_fields, 3).map(String::from).unwrap_or_default();
 
         // Champs optionnels de la zone générale
         let phase = parse_optional_u8(&general_fields, 4);
